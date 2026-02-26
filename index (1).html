@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storage Facility Length of Stay Analysis | Blacktail Companies</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; color: #e8e4df; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 28px; }
+  .header-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #9a9590; margin-bottom: 4px; }
+  h1 { font-size: 26px; font-weight: 700; color: #e8e4df; margin: 0; }
+  .header-meta { font-size: 13px; color: #9a9590; margin-top: 4px; }
+  
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; margin: 24px 0; border-bottom: 1px solid #333; }
+  .tab { background: none; border: none; cursor: pointer; padding: 8px 16px; font-size: 13px; font-weight: 500; color: #9a9590; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s; font-family: inherit; }
+  .tab.active { color: #c9a96e; border-bottom-color: #c9a96e; }
+  .tab:hover { color: #c9a96e; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Cards */
+  .card { background: #242424; border: 1px solid #333; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+  
+  /* Metrics row */
+  .metrics { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .metric { background: #242424; border: 1px solid #333; border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 160px; }
+  .metric-label { font-size: 12px; color: #9a9590; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .metric-value { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .metric-sub { font-size: 12px; color: #9a9590; margin-top: 4px; }
+  .accent { color: #c9a96e; }
+  .green { color: #5a9e6f; }
+  .red { color: #c25b56; }
+  .white { color: #e8e4df; }
+
+  /* Layout */
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col-2 { flex: 2; min-width: 320px; }
+  .col-1 { flex: 1; min-width: 280px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* Summary table */
+  .summary-header { display: flex; font-size: 11px; color: #9a9590; padding: 0 0 8px; border-bottom: 1px solid #333; margin-bottom: 4px; }
+  .summary-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #333; }
+  .summary-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .summary-name { flex: 1; font-weight: 500; }
+  .summary-val { width: 80px; text-align: right; }
+  .summary-val.bold { font-weight: 600; }
+  .summary-val.muted { color: #9a9590; }
+  .summary-total { display: flex; align-items: center; gap: 12px; padding: 12px 0 0; margin-top: 4px; }
+
+  /* Data tables */
+  .data-table { width: 100%; font-size: 12px; margin-top: 12px; }
+  .data-table .dt-header { display: grid; grid-template-columns: 1fr 80px 80px 80px 80px; gap: 4px; padding: 6px 8px; color: #9a9590; border-bottom: 1px solid #333; }
+  .data-table .dt-row { display: grid; grid-template-columns: 1fr 80px 80px 80px 80px; gap: 4px; padding: 6px 8px; border-bottom: 1px solid rgba(51,51,51,0.13); }
+  .dt-right { text-align: right; }
+  .dt-bold { font-weight: 600; }
+  .dt-muted { color: #9a9590; }
+
+  /* Facility header */
+  .facility-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .facility-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .facility-name { font-size: 16px; font-weight: 600; margin: 0; }
+  .facility-meta { font-size: 12px; color: #9a9590; margin-left: 8px; }
+
+  /* Chart containers */
+  .chart-container { position: relative; width: 100%; }
+  .chart-sm { height: 200px; }
+  .chart-md { height: 280px; }
+  .chart-lg { height: 380px; }
+  .chart-xl { height: 460px; }
+
+  /* Insights */
+  .insight { margin-bottom: 20px; }
+  .insight:last-child { margin-bottom: 0; }
+  .insight h4 { font-size: 14px; font-weight: 600; color: #e8e4df; margin-bottom: 8px; }
+  .insight p { font-size: 13px; color: #9a9590; line-height: 1.6; }
+  .ops-card { background: #1a1a1a; border-radius: 8px; padding: 16px; }
+  .ops-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .ops-card ul { margin: 0; padding-left: 18px; font-size: 13px; color: #9a9590; line-height: 1.8; }
+  .bottom-line { background: rgba(201,169,110,0.08); border: 1px solid rgba(201,169,110,0.25); border-radius: 8px; padding: 20px; }
+  .bottom-line h4 { font-size: 14px; font-weight: 600; color: #c9a96e; margin-bottom: 8px; }
+  .bottom-line p { font-size: 13px; color: #e8e4df; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header-sub">Blacktail Companies</div>
+  <h1>Storage Facility Length of Stay Analysis</h1>
+  <div class="header-meta">Report generated 2026-02-17 across 3 facilities, 393 total past rentals</div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview')">Overview</button>
+    <button class="tab" onclick="showTab('units')">Unit Breakdown</button>
+    <button class="tab" onclick="showTab('correlation')">Size vs. Stay</button>
+    <button class="tab" onclick="showTab('insights')">Key Insights</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Portfolio Avg Stay</div>
+        <div class="metric-value accent">7.4 mo</div>
+        <div class="metric-sub">225 days weighted avg</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Total Past Rentals</div>
+        <div class="metric-value white">393</div>
+        <div class="metric-sub">Across all 3 facilities</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Longest Avg Stay</div>
+        <div class="metric-value green">11.1 mo</div>
+        <div class="metric-sub">Bison Central - 10x10</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Shortest Avg Stay</div>
+        <div class="metric-value red">3.1 mo</div>
+        <div class="metric-sub">Black Label - 14x50</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-2">
+        <div class="card">
+          <div class="card-title">Average Length of Stay by Facility</div>
+          <div class="chart-container chart-sm"><canvas id="facilityChart"></canvas></div>
+        </div>
+      </div>
+      <div class="col-1">
+        <div class="card">
+          <div class="card-title">Facility Summary</div>
+          <div class="summary-header">
+            <div style="flex:1">Facility</div>
+            <div class="summary-val">Avg Stay</div>
+            <div class="summary-val">Days</div>
+            <div class="summary-val">Rentals</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-dot" style="background:#5b8fb9"></div>
+            <div class="summary-name">Bison North</div>
+            <div class="summary-val bold">9.4 mo</div>
+            <div class="summary-val muted">287 days</div>
+            <div class="summary-val muted">81</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-dot" style="background:#c9a96e"></div>
+            <div class="summary-name">Bison Central</div>
+            <div class="summary-val bold">8.5 mo</div>
+            <div class="summary-val muted">259 days</div>
+            <div class="summary-val muted">213</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-dot" style="background:#c25b56"></div>
+            <div class="summary-name">Black Label</div>
+            <div class="summary-val bold">4.6 mo</div>
+            <div class="summary-val muted">139 days</div>
+            <div class="summary-val muted">99</div>
+          </div>
+          <div class="summary-total">
+            <div style="width:10px"></div>
+            <div class="summary-name accent" style="font-weight:600">Portfolio Weighted</div>
+            <div class="summary-val accent" style="font-weight:700">7.4 mo</div>
+            <div class="summary-val muted">225 days</div>
+            <div class="summary-val muted">393</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Implied Annual Turnover Rate</div>
+      <div class="chart-container" style="height:160px"><canvas id="turnoverChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- UNITS TAB -->
+  <div id="tab-units" class="tab-content">
+    <!-- Bison North -->
+    <div class="card">
+      <div class="facility-header">
+        <div class="facility-dot" style="background:#5b8fb9"></div>
+        <h3 class="facility-name">Bison North</h3>
+        <span class="facility-meta">Facility Avg: 9.4 mo | 81 total rentals</span>
+      </div>
+      <div class="chart-container" style="height:120px"><canvas id="bnChart"></canvas></div>
+      <div class="data-table">
+        <div class="dt-header"><div>Unit Type</div><div class="dt-right">SF</div><div class="dt-right">Avg Days</div><div class="dt-right">Avg Months</div><div class="dt-right">Rentals</div></div>
+        <div class="dt-row"><div class="dt-bold">20x10x8</div><div class="dt-right dt-muted">200</div><div class="dt-right">309</div><div class="dt-right dt-bold" style="color:#5b8fb9">10.2</div><div class="dt-right dt-muted">43</div></div>
+        <div class="dt-row"><div class="dt-bold">25x10x8</div><div class="dt-right dt-muted">250</div><div class="dt-right">262</div><div class="dt-right dt-bold" style="color:#5b8fb9">8.6</div><div class="dt-right dt-muted">38</div></div>
+      </div>
+    </div>
+
+    <!-- Bison Central -->
+    <div class="card">
+      <div class="facility-header">
+        <div class="facility-dot" style="background:#c9a96e"></div>
+        <h3 class="facility-name">Bison Central</h3>
+        <span class="facility-meta">Facility Avg: 8.5 mo | 213 total rentals</span>
+      </div>
+      <div class="chart-container" style="height:180px"><canvas id="bcChart"></canvas></div>
+      <div class="data-table">
+        <div class="dt-header"><div>Unit Type</div><div class="dt-right">SF</div><div class="dt-right">Avg Days</div><div class="dt-right">Avg Months</div><div class="dt-right">Rentals</div></div>
+        <div class="dt-row"><div class="dt-bold">5x10</div><div class="dt-right dt-muted">50</div><div class="dt-right">188</div><div class="dt-right dt-bold" style="color:#c9a96e">6.2</div><div class="dt-right dt-muted">87</div></div>
+        <div class="dt-row"><div class="dt-bold">10x10</div><div class="dt-right dt-muted">100</div><div class="dt-right">338</div><div class="dt-right dt-bold" style="color:#c9a96e">11.1</div><div class="dt-right dt-muted">67</div></div>
+        <div class="dt-row"><div class="dt-bold">10x20</div><div class="dt-right dt-muted">200</div><div class="dt-right">293</div><div class="dt-right dt-bold" style="color:#c9a96e">9.6</div><div class="dt-right dt-muted">49</div></div>
+        <div class="dt-row"><div class="dt-bold">10x30</div><div class="dt-right dt-muted">300</div><div class="dt-right">182</div><div class="dt-right dt-bold" style="color:#c9a96e">6.0</div><div class="dt-right dt-muted">10</div></div>
+      </div>
+    </div>
+
+    <!-- Black Label -->
+    <div class="card">
+      <div class="facility-header">
+        <div class="facility-dot" style="background:#c25b56"></div>
+        <h3 class="facility-name">Black Label</h3>
+        <span class="facility-meta">Facility Avg: 4.6 mo | 99 total rentals</span>
+      </div>
+      <div class="chart-container" style="height:240px"><canvas id="blChart"></canvas></div>
+      <div class="data-table">
+        <div class="dt-header"><div>Unit Type</div><div class="dt-right">SF</div><div class="dt-right">Avg Days</div><div class="dt-right">Avg Months</div><div class="dt-right">Rentals</div></div>
+        <div class="dt-row"><div class="dt-bold">14x30</div><div class="dt-right dt-muted">420</div><div class="dt-right">170</div><div class="dt-right dt-bold" style="color:#c25b56">5.6</div><div class="dt-right dt-muted">28</div></div>
+        <div class="dt-row"><div class="dt-bold">12x40</div><div class="dt-right dt-muted">480</div><div class="dt-right">133</div><div class="dt-right dt-bold" style="color:#c25b56">4.4</div><div class="dt-right dt-muted">4</div></div>
+        <div class="dt-row"><div class="dt-bold">17x30</div><div class="dt-right dt-muted">510</div><div class="dt-right">188</div><div class="dt-right dt-bold" style="color:#c25b56">6.2</div><div class="dt-right dt-muted">16</div></div>
+        <div class="dt-row"><div class="dt-bold">14x40</div><div class="dt-right dt-muted">560</div><div class="dt-right">110</div><div class="dt-right dt-bold" style="color:#c25b56">3.6</div><div class="dt-right dt-muted">22</div></div>
+        <div class="dt-row"><div class="dt-bold">14x50</div><div class="dt-right dt-muted">700</div><div class="dt-right">93</div><div class="dt-right dt-bold" style="color:#c25b56">3.1</div><div class="dt-right dt-muted">20</div></div>
+        <div class="dt-row"><div class="dt-bold">17x50</div><div class="dt-right dt-muted">850</div><div class="dt-right">128</div><div class="dt-right dt-bold" style="color:#c25b56">4.2</div><div class="dt-right dt-muted">9</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CORRELATION TAB -->
+  <div id="tab-correlation" class="tab-content">
+    <div class="card">
+      <h3 style="margin:0 0 4px;font-size:16px;font-weight:600">Unit Size vs. Average Length of Stay</h3>
+      <p style="margin:0 0 16px;font-size:12px;color:#9a9590">Bubble size = number of past rentals</p>
+      <div class="chart-container chart-lg"><canvas id="scatterChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">All Units Ranked by Avg Stay</div>
+      <div class="chart-container chart-xl"><canvas id="rankedChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS TAB -->
+  <div id="tab-insights" class="tab-content">
+    <div class="card">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#c9a96e">Portfolio-Level Findings</h3>
+      <div class="insight">
+        <h4>1. Black Label Has 2x the Turnover of Traditional Storage</h4>
+        <p>Black Label's 4.6-month average stay translates to ~2.63 unit turns per year, compared to ~1.27 at Bison North and ~1.41 at Bison Central. This means significantly higher turnover costs (cleaning, re-leasing, vacancy days) but also more frequent re-pricing opportunities. If market rates are rising, Black Label captures upside faster. If rates soften, exposure is higher.</p>
+      </div>
+      <div class="insight">
+        <h4>2. Mid-Size Units Are the Retention Sweet Spot</h4>
+        <p>Across the portfolio, the 100-250 SF range (10x10, 10x20, 20x10) consistently delivers the longest stays: 9.6 to 11.1 months. These units likely serve tenants with stable, ongoing storage needs (business inventory, household overflow). Both the smallest units (5x10 at 6.2 months) and the largest garage condos (14x50 at 3.1 months) turn faster, suggesting more transient or project-based use cases.</p>
+      </div>
+      <div class="insight">
+        <h4>3. Bison Central Drives Volume, Bison North Drives Retention</h4>
+        <p>Bison Central accounts for 54% of all past rentals (213 of 393) and offers the widest unit mix. Bison North, despite having only 2 unit types and 81 rentals, achieves the highest facility average stay at 9.4 months. This suggests Bison North's larger units attract a stickier tenant base.</p>
+      </div>
+      <div class="insight">
+        <h4>4. Black Label Garage Condos Behave Differently Than Traditional Storage</h4>
+        <p>The garage condo product at Black Label shows a clear inverse relationship between unit size and length of stay. The largest units (14x50, 17x50) have the shortest stays (3.1 and 4.2 months), likely because tenants use them for short-term vehicle or equipment staging, not long-term storage. This is a fundamentally different demand pattern than Bison's traditional self-storage.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#c9a96e">Operational Implications</h3>
+      <div class="grid-2">
+        <div class="ops-card">
+          <div class="ops-label" style="color:#5a9e6f">Revenue Optimization</div>
+          <ul>
+            <li>Black Label should lean into shorter commitment terms with premium pricing, given natural turnover</li>
+            <li>Bison facilities can justify longer-term lease incentives (6-month or 12-month discounts) since tenants naturally stay 8-10 months anyway</li>
+            <li>Annual rate increases at Bison capture more value per tenant given longer retention</li>
+          </ul>
+        </div>
+        <div class="ops-card">
+          <div class="ops-label" style="color:#d4a843">Marketing Strategy</div>
+          <ul>
+            <li>Black Label needs a larger top-of-funnel pipeline to compensate for higher turnover</li>
+            <li>Bison Central 5x10 and 10x30 units churn faster (6.0-6.2 months). Evaluate whether pricing or positioning adjustments could improve retention</li>
+            <li>10x10 units at Bison Central are the "stickiest" product in the portfolio. Prioritize occupancy of this unit type</li>
+          </ul>
+        </div>
+        <div class="ops-card">
+          <div class="ops-label" style="color:#5b8fb9">CapEx Considerations</div>
+          <ul>
+            <li>Black Label units see 2-3x more move-in/move-out cycles per year. Budget for higher wear-and-tear on doors, flooring, and access points</li>
+            <li>Bison North's lower turnover means deferred maintenance can be scheduled more predictably</li>
+          </ul>
+        </div>
+        <div class="ops-card">
+          <div class="ops-label" style="color:#8b6fb0">Data Gaps to Address</div>
+          <ul>
+            <li>12x40 at Black Label only has 4 data points. Too small for reliable conclusions</li>
+            <li>10x30 at Bison Central only has 10 rentals. Same limitation applies</li>
+            <li>Missing: vacancy days between rentals, revenue per unit type, and move-out reason codes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-line">
+      <h4>Bottom Line</h4>
+      <p>The Bison facilities operate like traditional self-storage with 8-10 month average retention and stable tenant bases. Black Label operates more like a short-term rental product with sub-5-month stays and high turnover. These two product types require different pricing strategies, marketing budgets, and operational workflows. Managing them with the same playbook leaves value on the table.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  
+  // Destroy and recreate charts for the active tab
+  if (id === 'overview') initOverviewCharts();
+  if (id === 'units') initUnitCharts();
+  if (id === 'correlation') initCorrelationCharts();
+}
+
+// Chart defaults
+Chart.defaults.color = '#9a9590';
+Chart.defaults.borderColor = '#333';
+Chart.defaults.font.family = "'Segoe UI', 'Helvetica Neue', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.display = false;
+
+const chartInstances = {};
+function makeChart(id, config) {
+  if (chartInstances[id]) chartInstances[id].destroy();
+  chartInstances[id] = new Chart(document.getElementById(id), config);
+}
+
+// OVERVIEW CHARTS
+function initOverviewCharts() {
+  makeChart('facilityChart', {
+    type: 'bar',
+    data: {
+      labels: ['Bison North', 'Bison Central', 'Black Label'],
+      datasets: [{
+        data: [9.4, 8.5, 4.6],
+        backgroundColor: ['#5b8fb9', '#c9a96e', '#c25b56'],
+        borderRadius: 4, barPercentage: 0.5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#333' }, title: { display: true, text: 'Months', color: '#9a9590' } },
+        x: { grid: { display: false } }
+      },
+      plugins: {
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' months' } }
+      }
+    }
+  });
+
+  makeChart('turnoverChart', {
+    type: 'bar',
+    data: {
+      labels: ['Bison North', 'Bison Central', 'Black Label'],
+      datasets: [{
+        data: [1.27, 1.41, 2.63],
+        backgroundColor: ['#5b8fb9', '#c9a96e', '#c25b56'],
+        borderRadius: 4, barPercentage: 0.5
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { beginAtZero: true, grid: { color: '#333' }, title: { display: true, text: 'Turns per Year', color: '#9a9590' } },
+        y: { grid: { display: false } }
+      },
+      plugins: {
+        tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' turns/year' } }
+      }
+    }
+  });
+}
+
+// UNIT CHARTS
+function initUnitCharts() {
+  makeChart('bnChart', {
+    type: 'bar',
+    data: {
+      labels: ['20x10x8', '25x10x8'],
+      datasets: [{ data: [10.2, 8.6], backgroundColor: '#5b8fb9', borderRadius: 4, barPercentage: 0.5 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, max: 12, grid: { color: '#333' }, title: { display: true, text: 'Avg Stay (Months)', color: '#9a9590' } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' months' } } }
+    }
+  });
+
+  makeChart('bcChart', {
+    type: 'bar',
+    data: {
+      labels: ['5x10', '10x10', '10x20', '10x30'],
+      datasets: [{ data: [6.2, 11.1, 9.6, 6.0], backgroundColor: '#c9a96e', borderRadius: 4, barPercentage: 0.5 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, max: 12, grid: { color: '#333' }, title: { display: true, text: 'Avg Stay (Months)', color: '#9a9590' } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' months' } } }
+    }
+  });
+
+  makeChart('blChart', {
+    type: 'bar',
+    data: {
+      labels: ['14x30', '12x40', '17x30', '14x40', '14x50', '17x50'],
+      datasets: [{ data: [5.6, 4.4, 6.2, 3.6, 3.1, 4.2], backgroundColor: '#c25b56', borderRadius: 4, barPercentage: 0.5 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, max: 12, grid: { color: '#333' }, title: { display: true, text: 'Avg Stay (Months)', color: '#9a9590' } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' months' } } }
+    }
+  });
+}
+
+// CORRELATION CHARTS
+function initCorrelationCharts() {
+  const scatterData = [
+    { x: 200, y: 10.2, r: 12, label: 'BN 20x10x8', color: '#5b8fb9' },
+    { x: 250, y: 8.6, r: 10, label: 'BN 25x10x8', color: '#5b8fb9' },
+    { x: 50, y: 6.2, r: 16, label: 'BC 5x10', color: '#c9a96e' },
+    { x: 100, y: 11.1, r: 14, label: 'BC 10x10', color: '#c9a96e' },
+    { x: 200, y: 9.6, r: 12, label: 'BC 10x20', color: '#c9a96e' },
+    { x: 300, y: 6.0, r: 6, label: 'BC 10x30', color: '#c9a96e' },
+    { x: 420, y: 5.6, r: 10, label: 'BL 14x30', color: '#c25b56' },
+    { x: 480, y: 4.4, r: 4, label: 'BL 12x40', color: '#c25b56' },
+    { x: 510, y: 6.2, r: 8, label: 'BL 17x30', color: '#c25b56' },
+    { x: 560, y: 3.6, r: 9, label: 'BL 14x40', color: '#c25b56' },
+    { x: 700, y: 3.1, r: 9, label: 'BL 14x50', color: '#c25b56' },
+    { x: 850, y: 4.2, r: 6, label: 'BL 17x50', color: '#c25b56' },
+  ];
+
+  makeChart('scatterChart', {
+    type: 'bubble',
+    data: {
+      datasets: [
+        { label: 'Bison North', data: scatterData.filter(d => d.color === '#5b8fb9'), backgroundColor: 'rgba(91,143,185,0.7)', borderColor: '#5b8fb9' },
+        { label: 'Bison Central', data: scatterData.filter(d => d.color === '#c9a96e'), backgroundColor: 'rgba(201,169,110,0.7)', borderColor: '#c9a96e' },
+        { label: 'Black Label', data: scatterData.filter(d => d.color === '#c25b56'), backgroundColor: 'rgba(194,91,86,0.7)', borderColor: '#c25b56' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#9a9590', usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { callbacks: { label: ctx => { const d = ctx.raw; return d.label + ': ' + d.y + ' mo, ' + d.x + ' SF'; } } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Unit Size (SF)', color: '#9a9590' }, grid: { color: '#333' } },
+        y: { title: { display: true, text: 'Avg Stay (Months)', color: '#9a9590' }, grid: { color: '#333' }, beginAtZero: true, max: 12 }
+      }
+    }
+  });
+
+  // Ranked bar chart
+  const ranked = [
+    { name: '10x10', months: 11.1, color: '#c9a96e' },
+    { name: '20x10x8', months: 10.2, color: '#5b8fb9' },
+    { name: '10x20', months: 9.6, color: '#c9a96e' },
+    { name: '25x10x8', months: 8.6, color: '#5b8fb9' },
+    { name: '5x10', months: 6.2, color: '#c9a96e' },
+    { name: '17x30', months: 6.2, color: '#c25b56' },
+    { name: '10x30', months: 6.0, color: '#c9a96e' },
+    { name: '14x30', months: 5.6, color: '#c25b56' },
+    { name: '12x40', months: 4.4, color: '#c25b56' },
+    { name: '17x50', months: 4.2, color: '#c25b56' },
+    { name: '14x40', months: 3.6, color: '#c25b56' },
+    { name: '14x50', months: 3.1, color: '#c25b56' },
+  ];
+
+  makeChart('rankedChart', {
+    type: 'bar',
+    data: {
+      labels: ranked.map(d => d.name),
+      datasets: [{ data: ranked.map(d => d.months), backgroundColor: ranked.map(d => d.color), borderRadius: 4, barPercentage: 0.6 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { beginAtZero: true, max: 12, grid: { color: '#333' } },
+        y: { grid: { display: false } }
+      },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' months' } } }
+    }
+  });
+}
+
+// Init overview on load
+initOverviewCharts();
+</script>
+</body>
+</html>
